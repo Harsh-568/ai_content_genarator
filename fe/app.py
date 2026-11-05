@@ -1,3 +1,4 @@
+
 import streamlit as st
 import requests
 
@@ -9,12 +10,9 @@ st.set_page_config(
 )
 
 st.title("🚀 AI Content Generator")
-
 st.write("Generate Blogs, LinkedIn Posts, Captions, Emails and more")
 
-topic = st.text_input(
-    "Enter Topic"
-)
+topic = st.text_input("Enter Topic")
 
 technology = st.selectbox(
     "Select Technology",
@@ -55,31 +53,61 @@ tone = st.selectbox(
 generate = st.button("Generate Content")
 
 if generate:
-
-    if topic == "":
-        st.warning("Please enter topic")
+    if not topic.strip():
+        st.warning("Please enter a topic.")
     else:
+        try:
+            with st.spinner("Generating Content..."):
+                response = requests.post(
+                    f"{BACKEND_URL}/generate",
+                    json={
+                        "topic": topic,
+                        "technology": technology,
+                        "content_type": content_type,
+                        "tone": tone
+                    },
+                    timeout=120
+                )
 
-        with st.spinner("Generating Content..."):
+            # Check HTTP status
+            response.raise_for_status()
 
-            response = requests.post(
-                f"{BACKEND_URL}/generate",
-                params={
-                    "topic": topic,
-                    "technology": technology,
-                    "content_type": content_type,
-                    "tone": tone
-                }
+            # Check whether the response contains valid JSON
+            try:
+                result = response.json()
+            except requests.exceptions.JSONDecodeError:
+                st.error("Backend returned an invalid JSON response.")
+                st.code(response.text or "Empty response")
+                st.stop()
+
+            # Display generated content
+            if "content" in result:
+                if result.get("generation_mode") == "offline":
+                    st.warning(result.get("notice", "Showing an offline draft."))
+                else:
+                    st.success("AI content generated successfully!")
+                st.subheader("Generated Content")
+                st.text_area(
+                    "Output",
+                    value=result["content"],
+                    height=400
+                )
+            else:
+                st.error("The backend response does not contain 'content'.")
+                st.json(result)
+
+        except requests.exceptions.ConnectionError:
+            st.error(
+                "Cannot connect to the backend. "
+                "Make sure your FastAPI server is running on port 8000."
             )
 
-            result = response.json()
+        except requests.exceptions.Timeout:
+            st.error("The request timed out. Please try again.")
 
-            # st.success("Content Generated Successfully")
+        except requests.exceptions.HTTPError as e:
+            st.error(f"Backend HTTP error: {e}")
+            st.code(response.text)
 
-            # st.subheader("Generated Content")
-
-            st.text_area(
-                "Output",
-                value=result["content"],
-                height=400
-            )
+        except requests.exceptions.RequestException as e:
+            st.error(f"Request failed: {e}")
