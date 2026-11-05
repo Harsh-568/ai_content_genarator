@@ -83,7 +83,9 @@ if generate:
             # Display generated content
             if "content" in result:
                 if result.get("generation_mode") == "offline":
-                    st.warning(result.get("notice", "Showing an offline draft."))
+                    st.caption(
+                        "Offline draft generated. Add a valid Groq API key to enable AI generation."
+                    )
                 else:
                     st.success("AI content generated successfully!")
                 st.subheader("Generated Content")
